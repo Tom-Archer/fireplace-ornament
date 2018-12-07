@@ -9,20 +9,15 @@
  *******************************************************************/
 volatile uint8_t Buffer[12] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-void DisplaySetup () {
-  // ATtiny13A
-  // Set up Timer/Counter1 to multiplex the display - 9.6MHz
-//  TCCR0A |= 1<<WGM01;             // CTC mode
-//  TCCR0B |= 1<<CS01 | 1<<CS00;    // prescaler 64 
-//  OCR0A = 24;                     // Divide by 25 (CLK=9600000Hz/64/25 = 6KHz)
-//  TIMSK0 |= 1<<OCIE0A;            // Enable overflow interrupt
+const uint8_t Physical_Lookup[12] PROGMEM = {
+  0x3, 0x0, 0x7, 0x4, 0x6, 0x1, 0xB, 0x8, 0x0A, 0x5, 0x9, 0x2};
 
+void DisplaySetup () {
   // ATtiny25/45/85
   // Set up Timer/Counter1 to multiplex the display - 8MHz
   TCCR1 = 1<<CTC1 | 6<<CS10;      // CTC mode; prescaler 32
   OCR1C = 24;                     // Divide by 25 (CLK=8000000Hz/32/25 = 10KHz)
   TIMSK = TIMSK | 1<<OCIE1A;      // Enable overflow interrupt
-
   // ~50Hz complete refresh rate
 } 
 
@@ -101,13 +96,10 @@ void loop() {
       break;
     default:
       break;
-  }
-
-  delay(200);
-  
+  }  
   Step++;
   // Prevent overflow
-  Step = Step % 32768;
+  Step = Step % 65536;
 }
 
 void updateTriangleWave(uint8_t wait)
@@ -153,18 +145,3 @@ void updateChase(uint8_t wait)
 {
   
 }
-
-const uint8_t Physical_Lookup[12] PROGMEM = {
-  0x3, 0x0, 0x7, 0x4, 0x6, 0x1, 0xB, 0x8, 0x0A, 0x5, 0x9, 0x2};
-
-
-//static void charlie(uint8_t var)
-//{
-//  uint8_t anode = pgm_read_byte(&Physical_Lookup[var]) % 3;
-//  uint8_t cathode = var/3;
-//  anode = anode + (anode & 0x07<<cathode);
-//  
-//  DDRB = (DDRB & 0xF0) | anode;
-//  PORTB = (PORTB & 0xF0) | anode;
-//  DDRB = DDRB | 1<<cathode;
-//}
