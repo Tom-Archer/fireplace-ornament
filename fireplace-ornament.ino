@@ -9,9 +9,18 @@
  *******************************************************************/
 volatile uint8_t Buffer[12] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-const uint8_t Physical_Lookup[12] PROGMEM = {
-  0x3, 0x0, 0x7, 0x4, 0x6, 0x1, 0xB, 0x8, 0x0A, 0x5, 0x9, 0x2};
+const uint8_t Num_Leds = 12;
+const uint8_t On = 0xF;
 
+// uint8_t Physical_Lookup[12] PROGMEM = {
+//  0x3, 0x0, 0x7, 0x4, 0x6, 0x1, 0xB, 0x8, 0x0A, 0x5, 0x9, 0x2};
+
+// Lookup from logical LED numbering to electrical
+//    2  4  6  8  10  12
+//    1  3  5  7  9   1
+const uint8_t Logical_Lookup[12] = {
+  0x3, 0x0, 0x7, 0x4, 0x6, 0x1, 0xB, 0x8, 0x0A, 0x5, 0x9, 0x2};
+  
 void DisplaySetup () {
   // ATtiny25/45/85
   // Set up Timer/Counter1 to multiplex the display - 8MHz
@@ -29,14 +38,14 @@ void setup() {
 }
 
 void DisplayNextLed() {
-  static uint16_t cycle = 0;
+  static uint16_t cycle = 0; // uint16_t is more efficient
   // Turn off the cathode from the last cycle
-  DDRB = DDRB & ~(1<<((cycle % 12)/3));
+  DDRB = DDRB & ~(1<<((cycle % Num_Leds)/3));
   // Get the current cycle (0-191)
   // Each LED is updated 16 times every 192 cycles
-  cycle = (cycle + 1) & 0xC0;
+  cycle = (cycle + 1) % 0xC0;
   // Get the current LED number (0-11) 
-  uint8_t led = cycle % 12;
+  uint8_t led = cycle % Num_Leds;
   // Get LED update number (0-15)
   uint8_t count = cycle>>4;
   // Read the LED value from the buffer
@@ -56,10 +65,10 @@ ISR(TIM0_COMPA_vect) {
 }
 
 uint8_t Mode = 0;
-uint8_t Num_Modes = 10;
+uint8_t Num_Modes = 12;
 uint16_t Step = 0;
 
-void check_button_state()
+void CheckButtonState()
 {
   static bool Switch_On = false; 
   if (!(PINB & (1<<PB4)))
@@ -79,69 +88,135 @@ void check_button_state()
 }
 
 void loop() {
-  check_button_state();
+  CheckButtonState();
   switch (Mode)
   {
     case 0:
     case 1:
     case 2:
     case 3:
-      updateTriangleWave(50*(Mode+1));
+      UpdateTriangleWave(50*(Mode+1));
       break;
     case 4:
     case 5:
     case 6:
     case 7:
-      updateSquareWave(50*((Mode+1)%4));
+      UpdateSquareWave(50*((Mode+1)%4));
       break;
+    case 8:
+      UpdateSequence(100);
+    case 9:
+      UpdatePairs(100);
+    case 10:
+      UpdateSnake(100);
     default:
       break;
   }  
   Step++;
   // Prevent overflow
-  Step = Step % 65536;
+  Step = Step % 32768;
 }
 
-void updateTriangleWave(uint8_t wait)
+void UpdateTriangleWave(uint8_t wait)
 { 
   // Parameterised fade in/out
-  // Adjust p for different period (m*p)
+  // Adjust a for different amplitude
+  // Adjust p for different half-period
   // Adjust s for different start time
-  static uint8_t m = 15;
-  static uint8_t p = 1;
+  static uint8_t a = On;
+  static uint8_t p = 20;
   static uint8_t s = 0;
-  for(uint8_t i;i<12;i++)
+  for(uint8_t i;i<Num_Leds;i++)
   {
-    Buffer[i] = m - abs(((s + Step/p) % (2*m)) - m);
+    //Buffer[i] = abs(((s + Step/p) % (2*a)) - a);
+    Buffer[i] = a*(abs(((s + Step) % (2*p)) - p))/p;
+  
   }
   delay(wait);
 }
 
-void updateSquareWave(uint8_t wait)
+void UpdateSquareWave(uint8_t wait)
 {
   // Parameterised flash on/off
+  // Adjust a for different amplitude
   // Adjust d for different duty cycle
   // Adjust p for different period
   // Adjust s for different start time
-  static uint8_t m = 15;
+  static uint8_t a = On;
   static uint8_t d = 8;
   static uint8_t p = 1;
   static uint8_t s = 0;
-  for(uint8_t i;i<12;i++)
+  for(uint8_t i;i<Num_Leds;i++)
   {
-    if (((s + Step/p) % m) < d)
+    if (((s + Step/p) % a) < d)
     {
       Buffer[i] = 0x0;
     }
     else
     {
-      Buffer[i] = m;
+      Buffer[i] = a;
     }
   }
   delay(wait);
 }
 
-void updateChase(uint8_t wait)
+void UpdateSequence(uint8_t wait)
 {
-  
+  // Light LEDs in order turning off previous
+  // Add extra delay every second LED
+  uint8_t led = Step%12;
+  Buffer[Logical_Lookup[led]] = On;
+  if (led == 0)
+  {
+    Buffer[Logical_Lookup[11]] = 0x0;
+  }
+  else
+  {
+    Buffer[Logical_Lookup[led]] = 0x0;
+  }
+
+  if (led%2==1)
+  {
+    wait=wait<<1;
+  }
+  delay(wait);
+}
+
+void UpdatePairs(uint8_t wait)
+{
+  // Flash LEDs in pairs
+  uint8_t first_led = Step%12;
+  uint8_t second_led = (Step+3)%12;
+  for(uint8_t i;i<Num_Leds;i++)
+  {
+    if(i==first_led || i==second_led)
+    {
+      Buffer[Logical_Lookup[i]] = On;
+    }
+    else
+    {
+      Buffer[Logical_Lookup[i]] = 0x0;
+    }
+  }
+  delay(wait);
+}
+
+void UpdateSnake(uint8_t wait)
+{
+  // Z-Snake
+  // Set current LED to full brightness, and each LED to the left
+  // half the brightness of the previous
+  uint8_t led = Step%12;
+  uint8_t j = 0;
+  for(uint8_t i=led;i>=0;i--)
+  {
+      Buffer[Logical_Lookup[i]] = On >> j;
+      ++j;
+  }
+  for(uint8_t i=Num_Leds-1;i>led;i--)
+  {
+      Buffer[Logical_Lookup[i]] = On >> j;
+      ++j;
+  }
+  delay(wait);
 }
