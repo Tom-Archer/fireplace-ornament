@@ -16,7 +16,7 @@ const uint8_t On = 0xF;
 //    2  4  6  8  10  12
 //    1  3  5  7  9   11
 const uint8_t Logical_Lookup[12] = {
-  0x3, 0x0, 0x7, 0x4, 0x6, 0x1, 0xB, 0x8, 0x0A, 0x5, 0x9, 0x2};
+  0x3, 0x5, 0x0, 0xA, 0x2, 0x7, 0x9, 0x4, 0x06, 0x8, 0x1, 0xB};
   
 void DisplaySetup () {
   // ATtiny25/45/85
@@ -169,7 +169,7 @@ void UpdateSequence(uint8_t wait)
   }
   else
   {
-    Buffer[Logical_Lookup[led]] = 0x0;
+    Buffer[Logical_Lookup[led-1]] = 0x0;
   }
 
   if (led%2==1)
@@ -207,13 +207,13 @@ void UpdateSnake(uint8_t wait)
   uint8_t j = 0;
   for(uint8_t i=led;i>=0;i--)
   {
-      Buffer[Logical_Lookup[i]] = On >> j;
-      ++j;
+    Buffer[Logical_Lookup[i]] = On >> j;
+    ++j;
   }
   for(uint8_t i=Num_Leds-1;i>led;i--)
   {
-      Buffer[Logical_Lookup[i]] = On >> j;
-      ++j;
+    Buffer[Logical_Lookup[i]] = On >> j;
+    ++j;
   }
   delay(wait);
 }
