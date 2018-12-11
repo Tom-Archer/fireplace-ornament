@@ -56,7 +56,9 @@ ISR(TIM1_COMPA_vect) {
 }
 
 uint8_t Mode = 0;
-uint8_t Num_Modes = 4;
+uint8_t Speed = 0;
+uint8_t Num_Modes = 5;
+uint8_t Num_Speeds = 3;
 uint16_t Step = 0;
 
 void CheckButtonState()
@@ -67,9 +69,8 @@ void CheckButtonState()
     if (!Switch_On)
     {
       Switch_On = true;
-      //Step = 0;
       Mode++;
-      Mode = Mode % Num_Modes; // constrain
+      Mode = Mode % (Num_Modes*Num_Speeds); // constrain
     }
   }
   else
@@ -80,20 +81,24 @@ void CheckButtonState()
 
 void loop() {
   CheckButtonState();
-  switch (Mode)
+  Speed = Mode%Num_Speeds;
+  switch (Mode/Num_Speeds)
   {
     case 0:
-      UpdateSnake(100,4);
+      UpdateAlternate(100+50*Speed);
       break;
     case 1:
-      UpdateRandom(100);
+      UpdateRandom(100+50*Speed);
       break;
     case 2:
-      UpdateSequence(100);
+      UpdateSequence(100+50*Speed);
       break;
     case 3:
-      UpdatePairs(100);
+      UpdatePairs(100+50*Speed,3);
       break;  
+    case 4:
+      UpdateSnake(100+50*speed,4);
+      break;
   }
   
   Step++;
@@ -109,7 +114,7 @@ void ClearLeds()
   }
 }
 
-void UpdateRandom(uint8_t wait)
+void UpdateRandom(uint16_t wait)
 {
   // Light LEDs in electrical order
   ClearLeds();
@@ -117,7 +122,7 @@ void UpdateRandom(uint8_t wait)
   delay(wait);
 }
 
-void UpdateSequence(uint8_t wait)
+void UpdateSequence(uint16_t wait)
 {
   // Light LEDs in logical order
   // Add extra delay every second LED
@@ -131,18 +136,18 @@ void UpdateSequence(uint8_t wait)
   delay(wait);
 }
 
-void UpdatePairs(uint8_t wait)
+void UpdatePairs(uint16_t wait, uint8_t separation)
 {
   // Flash LEDs in pairs
   ClearLeds();
   uint8_t first_led = Step%12;
-  uint8_t second_led = (Step+3)%12;
+  uint8_t second_led = (Step+separation)%12;
   Buffer[Logical_Lookup[first_led]] = On;
   Buffer[Logical_Lookup[second_led]] = On;
   delay(wait);
 }
 
-void UpdateSnake(uint8_t wait, uint8_t chain)
+void UpdateSnake(uint16_t wait, uint8_t chain)
 {
   // Z-Snake - Chain a number of LEDs
   ClearLeds();
@@ -151,6 +156,19 @@ void UpdateSnake(uint8_t wait, uint8_t chain)
   {
     Buffer[Logical_Lookup[(Step-j)%12]] = On;
     ++j;
+  }
+  delay(wait);
+}
+
+void UpdateAlternate(uint16_t wait)
+{
+  // Alternate top and bottom LEDs
+  ClearLeds();
+  for(uint8_t i=0;i<3;i++)
+  {
+    uint8_t led = (4*i)+1+(2*(Step%2));
+    Buffer[Logical_Lookup[led]] = On;
+    Buffer[Logical_Lookup[(led+1)%Num_Leds]] = On;
   }
   delay(wait);
 }
