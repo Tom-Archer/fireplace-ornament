@@ -57,8 +57,8 @@ ISR(TIM1_COMPA_vect) {
 
 uint8_t Mode = 0;
 uint8_t Speed = 0;
-uint8_t Num_Modes = 5;
-uint8_t Num_Speeds = 3;
+uint8_t Num_Modes = 6;
+uint8_t Num_Speeds = 1; //3
 uint16_t Step = 0;
 
 void CheckButtonState()
@@ -70,6 +70,7 @@ void CheckButtonState()
     {
       Switch_On = true;
       Mode++;
+      Step = 0;
       Mode = Mode % (Num_Modes*Num_Speeds); // constrain
     }
   }
@@ -85,19 +86,22 @@ void loop() {
   switch (Mode/Num_Speeds)
   {
     case 0:
-      UpdateAlternate(100+50*Speed);
+      UpdateChase(100+50*Speed);
       break;
     case 1:
-      UpdateRandom(100+50*Speed);
+      UpdateAlternate(100+50*Speed);
       break;
     case 2:
-      UpdateSequence(100+50*Speed);
+      UpdateRandom(100+50*Speed);
       break;
     case 3:
+      UpdateSequence(100+50*Speed);
+      break;
+    case 4:
       UpdatePairs(100+50*Speed,3);
       break;  
-    case 4:
-      UpdateSnake(100+50*speed,4);
+    case 5:
+      UpdateSnake(100+50*Speed,4);
       break;
   }
   
@@ -170,5 +174,13 @@ void UpdateAlternate(uint16_t wait)
     Buffer[Logical_Lookup[led]] = On;
     Buffer[Logical_Lookup[(led+1)%Num_Leds]] = On;
   }
+  delay(wait);
+}
+
+void UpdateChase(uint16_t wait)
+{
+  // Turn all LEDs on in sequence and then off
+  uint8_t iteration = Step % (Num_Leds * 2);
+  Buffer[Logical_Lookup[2*(iteration%6)+((iteration%12)>5)]] = (iteration < 12)*On;
   delay(wait);
 }
