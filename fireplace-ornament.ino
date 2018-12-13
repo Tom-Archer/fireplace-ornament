@@ -57,9 +57,11 @@ ISR(TIM1_COMPA_vect) {
 
 uint8_t Mode = 0;
 uint8_t Speed = 0;
-uint8_t Num_Modes = 6;
-uint8_t Num_Speeds = 1; //3
+uint8_t Num_Modes = 7;
+uint8_t Num_Speeds = 1;
 uint16_t Step = 0;
+bool Auto = true;
+uint16_t Auto_Count = 0;
 
 void CheckButtonState()
 {
@@ -72,6 +74,9 @@ void CheckButtonState()
       Mode++;
       Step = 0;
       Mode = Mode % (Num_Modes*Num_Speeds); // constrain
+      // Turn off auto-cycling
+      Auto = false;
+      Auto_Count = 0;
     }
   }
   else
@@ -86,26 +91,38 @@ void loop() {
   switch (Mode/Num_Speeds)
   {
     case 0:
-      UpdateChase(100+50*Speed);
+      Auto = true;
       break;
     case 1:
-      UpdateAlternate(100+50*Speed);
+      UpdateChase(100+50*Speed);
       break;
     case 2:
-      UpdateRandom(100+50*Speed);
+      UpdateAlternate(100+50*Speed);
       break;
     case 3:
-      UpdateSequence(100+50*Speed);
+      UpdateRandom(100+50*Speed);
       break;
     case 4:
+      UpdateSequence(100+50*Speed);
+      break;
+    case 5:
       UpdatePairs(100+50*Speed,3);
       break;  
-    case 5:
+    case 6:
       UpdateSnake(100+50*Speed,4);
       break;
   }
   
   Step++;
+  if(Auto)
+  {
+    Auto_Count++;
+    if (Auto_Count == 100)
+    {
+      Auto_Count=0;
+      Mode++;
+    }
+  }
   // Prevent overflow
   Step = Step % 32768;
 }
