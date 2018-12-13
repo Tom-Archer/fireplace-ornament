@@ -61,7 +61,7 @@ uint8_t Num_Modes = 7;
 uint8_t Num_Speeds = 1;
 uint16_t Step = 0;
 bool Auto = true;
-uint16_t Auto_Count = 0;
+uint8_t Auto_Count = 0;
 
 void CheckButtonState()
 {
@@ -71,12 +71,19 @@ void CheckButtonState()
     if (!Switch_On)
     {
       Switch_On = true;
-      Mode++;
+      if (Auto)
+      {
+        // Turn off auto-cycling
+        Auto = false;
+        Auto_Count = 0;
+      }
+      else
+      {
+        // Increment the mode
+        Mode++;
+        Mode = Mode % (Num_Modes*Num_Speeds); // constrain
+      }
       Step = 0;
-      Mode = Mode % (Num_Modes*Num_Speeds); // constrain
-      // Turn off auto-cycling
-      Auto = false;
-      Auto_Count = 0;
     }
   }
   else
@@ -87,12 +94,16 @@ void CheckButtonState()
 
 void loop() {
   CheckButtonState();
+
+  if (Mode == 0)
+  {
+    Auto = true;
+    Mode = 1*Num_Speeds;
+  }
+  
   Speed = Mode%Num_Speeds;
   switch (Mode/Num_Speeds)
   {
-    case 0:
-      Auto = true;
-      break;
     case 1:
       UpdateChase(100+50*Speed);
       break;
@@ -113,7 +124,6 @@ void loop() {
       break;
   }
   
-  Step++;
   if(Auto)
   {
     Auto_Count++;
@@ -123,6 +133,8 @@ void loop() {
       Mode++;
     }
   }
+  
+  Step++;
   // Prevent overflow
   Step = Step % 32768;
 }
