@@ -111,7 +111,7 @@ void loop() {
       UpdateAlternate(100+50*Speed);
       break;
     case 3:
-      UpdateRandom(100+50*Speed);
+      UpdateRandom(150+50*Speed);
       break;
     case 4:
       UpdateSequence(100+50*Speed);
